@@ -20,7 +20,7 @@ export async function updateModule(f: FormData) {
   const url = str(f, "notionUrl");
   if (url && !/^https:\/\//i.test(url)) throw new Error("Notion URL must start with https://");
   const color = str(f, "color");
-  db.update(schema.modules)
+  await db.update(schema.modules)
     .set({
       name: str(f, "name") || undefined,
       notionUrl: url,
@@ -34,7 +34,7 @@ export async function updateModule(f: FormData) {
 }
 
 export async function updateSession(f: FormData) {
-  db.update(schema.sessions)
+  await db.update(schema.sessions)
     .set({ room: str(f, "room"), lecturer: str(f, "lecturer"), location: str(f, "location") })
     .where(eq(schema.sessions.id, num(f, "id")))
     .run();
@@ -48,7 +48,7 @@ export async function addEvent(f: FormData) {
   const title = str(f, "title");
   if (!title || !DATE.test(date) || !TIME.test(start) || !TIME.test(end)) throw new Error("Invalid event");
   const moduleId = num(f, "moduleId");
-  db.insert(schema.sessions)
+  await db.insert(schema.sessions)
     .values({
       title,
       kind: ["event", "exam", "deadline"].includes(str(f, "kind")) ? str(f, "kind") : "event",
@@ -64,7 +64,7 @@ export async function addEvent(f: FormData) {
 }
 
 export async function deleteSession(f: FormData) {
-  db.delete(schema.sessions).where(eq(schema.sessions.id, num(f, "id"))).run();
+  await db.delete(schema.sessions).where(eq(schema.sessions.id, num(f, "id"))).run();
   refresh();
 }
 
@@ -74,7 +74,7 @@ export async function addAssessment(f: FormData) {
   const dueTime = str(f, "dueTime") || "23:59";
   const w = str(f, "weight");
   if (!title || !DATE.test(dueDate) || !TIME.test(dueTime)) throw new Error("Invalid assessment");
-  db.insert(schema.assessments)
+  await db.insert(schema.assessments)
     .values({
       moduleId: num(f, "moduleId"),
       title,
@@ -82,7 +82,7 @@ export async function addAssessment(f: FormData) {
       dueTime,
       weight: w ? Math.max(0, Math.min(100, Math.round(Number(w)))) : null,
       year: CURRENT_YEAR,
-      term: termOf(dueDate, getTermDates()),
+      term: termOf(dueDate, await getTermDates()),
     })
     .run();
   refresh();
@@ -90,11 +90,11 @@ export async function addAssessment(f: FormData) {
 
 export async function setProgress(id: number, progress: number) {
   const p = Math.max(0, Math.min(100, Math.round(progress)));
-  db.update(schema.assessments).set({ progress: p }).where(eq(schema.assessments.id, id)).run();
+  await db.update(schema.assessments).set({ progress: p }).where(eq(schema.assessments.id, id)).run();
   refresh();
 }
 
 export async function deleteAssessment(f: FormData) {
-  db.delete(schema.assessments).where(eq(schema.assessments.id, num(f, "id"))).run();
+  await db.delete(schema.assessments).where(eq(schema.assessments.id, num(f, "id"))).run();
   refresh();
 }

@@ -17,34 +17,38 @@ import { getNotionStatus } from "@/lib/notion/sync";
 import { getTermDates } from "@/lib/db/academic";
 import { MODULE_TERMS, TERMS, YEAR_LABEL, CURRENT_YEAR } from "@/lib/academic";
 import HealthImport from "@/components/settings/HealthImport";
-import { db } from "@/lib/db";
+import { q } from "@/lib/db";
 import { resetMatchConfig, saveMatchConfig, saveSourceSettings } from "@/app/opportunities/actions";
 
 async function Data() {
   const { modules, sessions } = await getTimetableData();
   const weekly = sessions.filter((s) => !s.date);
   const oneOff = sessions.filter((s) => s.date).sort((a, b) => a.date!.localeCompare(b.date!));
-  const one = (sql: string) => db.$client.prepare(sql).get() as Record<string, number | string | null>;
-  const healthCounts = {
-    nights: Number(one("SELECT COUNT(*) n FROM sleep_sessions").n),
-    hr: Number(one("SELECT COUNT(*) n FROM heart_rate_daily").n),
-    hrv: Number(one("SELECT COUNT(*) n FROM hrv_daily").n),
-    steps: Number(one("SELECT COUNT(*) n FROM steps_daily").n),
-    workouts: Number(one("SELECT COUNT(*) n FROM workouts_imported").n),
-    first: (one("SELECT MIN(night_date) d FROM sleep_sessions").d as string | null) ?? null,
-    last: (one("SELECT MAX(night_date) d FROM sleep_sessions").d as string | null) ?? null,
-  };
-  const match = getMatchConfig();
-  const src = getSourceSettings();
-  const eventFeeds = getEventFeedLines();
-  const projectLinks = getProjectLinks();
-  const notion = getNotionStatus();
-  const termDates = getTermDates();
+  const [counts, match, src, eventFeeds, projectLinks, notion, termDates] = await Promise.all([
+    q.get<{ nights: number; hr: number; hrv: number; steps: number; workouts: number; first: string | null; last: string | null }>(
+      `SELECT (SELECT COUNT(*) FROM sleep_sessions) AS nights, (SELECT COUNT(*) FROM heart_rate_daily) AS hr, (SELECT COUNT(*) FROM hrv_daily) AS hrv,
+              (SELECT COUNT(*) FROM steps_daily) AS steps, (SELECT COUNT(*) FROM workouts_imported) AS workouts,
+              (SELECT MIN(night_date) FROM sleep_sessions) AS first, (SELECT MAX(night_date) FROM sleep_sessions) AS last`,
+    ),
+    getMatchConfig(),
+    getSourceSettings(),
+    getEventFeedLines(),
+    getProjectLinks(),
+    getNotionStatus(),
+    getTermDates(),
+  ]);
+  const healthCounts = { nights: Number(counts?.nights ?? 0), hr: Number(counts?.hr ?? 0), hrv: Number(counts?.hrv ?? 0), steps: Number(counts?.steps ?? 0), workouts: Number(counts?.workouts ?? 0), first: counts?.first ?? null, last: counts?.last ?? null };
   const modName = (id: number | null) => modules.find((m) => m.id === id)?.code ?? "—";
 
   return (
     <div className="grid gap-4 xl:grid-cols-2">
       <Panel label="HEALTH DATA // IMPORT" className="xl:col-span-2" accent="violet">
+        {process.env.VERCEL && (
+          <p className="mb-3 rounded-sm border border-magenta/40 p-2 text-xs text-magenta">
+            You&apos;re on the hosted version: uploads here are capped at about 4.5 MB, so a full Apple Health export.zip won&apos;t go through. Import it from your Mac
+            instead (see the README, &quot;Importing big health files&quot;), or use the automatic sync below. Small CSV/JSON files work here.
+          </p>
+        )}
         <HealthImport ingestConfigured={Boolean(process.env.INGEST_SECRET)} counts={healthCounts} />
       </Panel>
 

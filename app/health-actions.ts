@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
+import { q } from "@/lib/db";
 import { setSetting } from "@/lib/db/opp";
 import { addDays, wallToInstant } from "@/lib/time";
 
@@ -15,7 +15,7 @@ const refresh = () => revalidatePath("/", "layout");
 
 export async function saveSleepTarget(hours: number) {
   if (!Number.isFinite(hours)) throw new Error("Bad target");
-  setSetting("sleepTargetHours", Math.max(4, Math.min(12, Math.round(hours * 4) / 4)));
+  await setSetting("sleepTargetHours", Math.max(4, Math.min(12, Math.round(hours * 4) / 4)));
   refresh();
 }
 
@@ -41,27 +41,23 @@ export async function saveManualNight(f: FormData) {
   const awake = Math.min(mins(f, "awake"), total - 10);
   const asleep = total - awake;
   const tz = Math.round((new Date(endAt).getTime() - Date.parse(`${date}T${wake}:00Z`)) / -60000);
-  db.$client
-    .prepare(
-      `INSERT INTO sleep_sessions (night_date,start_at,end_at,tz_offset_min,asleep_min,core_min,deep_min,rem_min,awake_min,unspec_min,in_bed_min,is_nap,source,dedupe_key,created_at)
+  await q.run(
+    `INSERT INTO sleep_sessions (night_date,start_at,end_at,tz_offset_min,asleep_min,core_min,deep_min,rem_min,awake_min,unspec_min,in_bed_min,is_nap,source,dedupe_key,created_at)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,0,'manual',?,?)
        ON CONFLICT(dedupe_key) DO UPDATE SET start_at=excluded.start_at,end_at=excluded.end_at,tz_offset_min=excluded.tz_offset_min,asleep_min=excluded.asleep_min,
          core_min=excluded.core_min,deep_min=excluded.deep_min,rem_min=excluded.rem_min,awake_min=excluded.awake_min,unspec_min=excluded.unspec_min,in_bed_min=excluded.in_bed_min`,
-    )
-    .run(date, startAt, endAt, tz, asleep, core, deep, rem, awake, Math.max(0, asleep - core - deep - rem), total, `manual|${date}|main|0`, Date.now());
+    [date, startAt, endAt, tz, asleep, core, deep, rem, awake, Math.max(0, asleep - core - deep - rem), total, `manual|${date}|main|0`, Date.now()],
+  );
   refresh();
 }
 
 export async function deleteManualNight(date: string) {
   if (!DATE.test(date)) throw new Error("Bad date");
-  db.$client.prepare("DELETE FROM sleep_sessions WHERE dedupe_key = ?").run(`manual|${date}|main|0`);
+  await q.run("DELETE FROM sleep_sessions WHERE dedupe_key = ?", [`manual|${date}|main|0`]);
   refresh();
 }
 
 export async function clearHealthData() {
-  const c = db.$client;
-  c.transaction(() => {
-    for (const t of ["sleep_sessions", "heart_rate_daily", "hrv_daily", "steps_daily", "workouts_imported"]) c.prepare(`DELETE FROM ${t}`).run();
-  })();
+  await q.batch(["sleep_sessions", "heart_rate_daily", "hrv_daily", "steps_daily", "workouts_imported"].map((t) => ({ sql: `DELETE FROM ${t}` })));
   refresh();
 }

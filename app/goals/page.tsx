@@ -8,7 +8,7 @@ import { GOAL_CATEGORIES, GOAL_STATUSES } from "@/lib/life";
 
 async function Data() {
   await connection();
-  const goals = loadGoals();
+  const goals = await loadGoals();
   return (
     <div className="space-y-4">
       <Panel label="ADD A GOAL // E.G. A GRAD SCHEME OR MASTER'S APPLICATION" accent="violet">

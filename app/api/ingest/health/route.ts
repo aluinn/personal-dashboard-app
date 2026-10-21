@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Expected JSON" }, { status: 400 });
   }
   const hae = looksLikeHae(json);
-  const saved = applyBatch(hae ? mapHaeJson(json) : mapNativeJson(json), hae ? "hae" : "api");
+  const saved = await applyBatch(hae ? mapHaeJson(json) : mapNativeJson(json), hae ? "hae" : "api");
   revalidatePath("/", "layout");
   return NextResponse.json({ format: hae ? "health-auto-export" : "native", saved });
 }

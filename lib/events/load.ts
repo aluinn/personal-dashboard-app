@@ -34,11 +34,11 @@ async function loadFeed(f: FeedConfig): Promise<{ raw: RawEvent[]; status: FeedS
         .filter((e) => !e.cancelled)
         .map((e) => ({ ...e, description: e.description.slice(0, 900) }));
     });
-    const row = db.select().from(schema.sourceCache).where(eq(schema.sourceCache.key, key)).get();
+    const row = await db.select().from(schema.sourceCache).where(eq(schema.sourceCache.key, key)).get();
     return { raw: data, status: { ...base, ok: true, count: data.length, fetchedAt: row?.fetchedAt } };
   } catch (e) {
     const error = e instanceof Error ? e.message : "Couldn't fetch this feed.";
-    const row = db.select().from(schema.sourceCache).where(eq(schema.sourceCache.key, key)).get();
+    const row = await db.select().from(schema.sourceCache).where(eq(schema.sourceCache.key, key)).get();
     if (row) {
       const raw = JSON.parse(row.payload) as RawEvent[];
       return { raw, status: { ...base, ok: false, stale: true, count: raw.length, error, fetchedAt: row.fetchedAt } };
@@ -56,7 +56,7 @@ export async function loadEvents(pastDays = 0): Promise<{
   configured: boolean;
 }> {
   await connection();
-  const { feeds: configs, problems } = parseFeedLines(getEventFeedLines());
+  const { feeds: configs, problems } = parseFeedLines(await getEventFeedLines());
   const loaded = await Promise.all(configs.map(loadFeed));
 
   const now = Date.now();

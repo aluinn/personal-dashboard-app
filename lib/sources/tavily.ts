@@ -83,7 +83,7 @@ export async function fetchWeb(queries: string[], dailyCap: number) {
   for (const q of queries) {
     try {
       const { data, cached } = await fetchCached(`tavily:${q}`, TTL, async () => {
-        if (!spendCall("tavily", dailyCap)) throw new Error("cap");
+        if (!(await spendCall("tavily", dailyCap))) throw new Error("cap");
         const res = await fetch("https://api.tavily.com/search", {
           method: "POST",
           signal: AbortSignal.timeout(15000),

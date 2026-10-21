@@ -6,7 +6,7 @@ import { GOAL_STATUSES } from "@/lib/life";
 
 export default async function GoalsCard() {
   await connection();
-  const goals = loadGoals();
+  const goals = await loadGoals();
   const open = goals.filter((g) => g.status !== "done");
   return (
     <Panel label="GOALS" meta={<Link href="/goals" className="hover:text-teal">Board →</Link>} delay={0.55} className="md:col-span-6 xl:col-span-4">

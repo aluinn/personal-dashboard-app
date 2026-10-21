@@ -44,7 +44,7 @@ export async function fetchAdzuna(queries: string[], dailyCap: number) {
   for (const q of queries) {
     try {
       const { data, cached } = await fetchCached(`adzuna:${q}`, TTL, async () => {
-        if (!spendCall("adzuna", dailyCap)) throw new Error("cap");
+        if (!(await spendCall("adzuna", dailyCap))) throw new Error("cap");
         const url = new URL("https://api.adzuna.com/v1/api/jobs/gb/search/1");
         url.search = new URLSearchParams({
           app_id: id,

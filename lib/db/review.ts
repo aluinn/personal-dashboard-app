@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "./index";
+import { q } from "./index";
 import { getSleepTarget, loadSleepRows } from "./health";
 import { loadHabits } from "./life";
 import { loadSessions, loadWatchWorkouts } from "./workouts";
@@ -34,17 +34,23 @@ export function periodsFor(weekStart: string, today: string): { cur: Period; pre
   return { cur: { start: weekStart, end, days }, prev: { start: ps, end: addDays(ps, days - 1), days } };
 }
 
-export function getReview(weekStart: string, today: string) {
+export async function getReview(weekStart: string, today: string) {
   const { cur, prev } = periodsFor(weekStart, today);
-  const nights = buildNights(loadSleepRows());
-  const scores = scoresFor(nights, getSleepTarget());
-  const sessions = loadSessions();
-  const { linked, unmatched } = linkWatch(sessions, loadWatchWorkouts());
+  const [sleepRows, target, sessions, watches, habits, stimSettings, stim, applied] = await Promise.all([
+    loadSleepRows(),
+    getSleepTarget(),
+    loadSessions(),
+    loadWatchWorkouts(),
+    loadHabits(addDays(prev.start, -1)),
+    getStimSettings(),
+    stimLogsSince(Date.parse(prev.start) - 86400000),
+    q.all<{ t: number }>("SELECT applied_at AS t FROM opportunities WHERE applied_at IS NOT NULL"),
+  ]);
+  const nights = buildNights(sleepRows);
+  const scores = scoresFor(nights, target);
+  const { linked, unmatched } = linkWatch(sessions, watches);
   const days = dayMap(linked, unmatched);
-  const habits = loadHabits(addDays(prev.start, -1));
-  const maxMg = getStimSettings().maxMg;
-  const stim = stimLogsSince(Date.parse(prev.start) - 86400000);
-  const applied = db.$client.prepare("SELECT applied_at AS t FROM opportunities WHERE applied_at IS NOT NULL").all() as { t: number }[];
+  const maxMg = stimSettings.maxMg;
   const inP = (d: string, p: Period) => d >= p.start && d <= p.end;
 
   const metrics = (p: Period): Metrics => {

@@ -1,11 +1,16 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { createClient, type Client, type InValue, type ResultSet } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
+import fs from "node:fs";
 import path from "node:path";
 import { termOf } from "@/lib/academic";
-import fs from "node:fs";
 import * as schema from "./schema";
 
-const DB_PATH = path.join(process.cwd(), "data", "dashboard.db");
+// The database is libSQL (SQLite-compatible), through one of two routes:
+//   - TURSO_DATABASE_URL (+ TURSO_AUTH_TOKEN): a hosted Turso database. Required on Vercel, which has no
+//     persistent disk. Also usable locally, so you can import big files from your Mac into the cloud DB.
+//   - otherwise a local file, data/dashboard.db (what `npm run dev` uses by default).
+const REMOTE = Boolean(process.env.TURSO_DATABASE_URL);
+const LOCAL_PATH = path.join(process.cwd(), "data", "dashboard.db");
 
 const BOOTSTRAP = `
 CREATE TABLE IF NOT EXISTS modules (
@@ -230,54 +235,103 @@ const SEED_MODULES = [
 ];
 
 // Columns added after a table first shipped (CREATE IF NOT EXISTS can't add them).
-function migrate(sqlite: Database.Database) {
-  const cols = (sqlite.prepare("PRAGMA table_info(opportunities)").all() as { name: string }[]).map((c) => c.name);
-  if (!cols.includes("applied_at")) sqlite.exec("ALTER TABLE opportunities ADD COLUMN applied_at INTEGER");
-
-  const has = (table: string, col: string) => (sqlite.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some((c) => c.name === col);
-  if (!has("modules", "year")) sqlite.exec("ALTER TABLE modules ADD COLUMN year INTEGER NOT NULL DEFAULT 2");
-  if (!has("modules", "term")) sqlite.exec("ALTER TABLE modules ADD COLUMN term TEXT NOT NULL DEFAULT 'All terms'");
-  if (!has("assessments", "year")) sqlite.exec("ALTER TABLE assessments ADD COLUMN year INTEGER NOT NULL DEFAULT 2");
-  if (!has("assessments", "term")) sqlite.exec("ALTER TABLE assessments ADD COLUMN term TEXT NOT NULL DEFAULT ''");
+async function migrate(c: Client) {
+  const cols = async (table: string) => (await c.execute(`PRAGMA table_info(${table})`)).rows.map((r) => String(r.name));
+  const opp = await cols("opportunities");
+  if (!opp.includes("applied_at")) await c.execute("ALTER TABLE opportunities ADD COLUMN applied_at INTEGER");
+  const mod = await cols("modules");
+  if (!mod.includes("year")) await c.execute("ALTER TABLE modules ADD COLUMN year INTEGER NOT NULL DEFAULT 2");
+  if (!mod.includes("term")) await c.execute("ALTER TABLE modules ADD COLUMN term TEXT NOT NULL DEFAULT 'All terms'");
+  const ass = await cols("assessments");
+  if (!ass.includes("year")) await c.execute("ALTER TABLE assessments ADD COLUMN year INTEGER NOT NULL DEFAULT 2");
+  if (!ass.includes("term")) await c.execute("ALTER TABLE assessments ADD COLUMN term TEXT NOT NULL DEFAULT ''");
   // Tag existing deadlines with their term.
-  const untagged = sqlite.prepare("SELECT id, due_date AS d FROM assessments WHERE term = ''").all() as { id: number; d: string }[];
-  const set = sqlite.prepare("UPDATE assessments SET term = ? WHERE id = ?");
-  for (const a of untagged) set.run(termOf(a.d), a.id);
+  const untagged = (await c.execute("SELECT id, due_date AS d FROM assessments WHERE term = ''")).rows;
+  for (const a of untagged) await c.execute({ sql: "UPDATE assessments SET term = ? WHERE id = ?", args: [termOf(String(a.d)), Number(a.id)] });
 }
 
-function open() {
-  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-  const sqlite = new Database(DB_PATH);
-  // Rollback-journal mode, deliberately not WAL: in WAL mode a second process (a script, a DB browser)
-  // closing its connection can delete the log file while this server still has it open, after which
-  // the server writes into an orphaned file and those writes are lost. This app is single-user, so
-  // WAL's extra concurrency isn't worth that failure mode.
-  sqlite.pragma("journal_mode = DELETE");
-  sqlite.pragma("busy_timeout = 5000");
-  sqlite.pragma("foreign_keys = ON");
-  sqlite.exec(BOOTSTRAP);
-  migrate(sqlite);
-
-  const count = sqlite.prepare("SELECT COUNT(*) AS n FROM modules").get() as { n: number };
-  if (count.n === 0) {
-    const insMod = sqlite.prepare("INSERT INTO modules (code, name, color) VALUES (?, ?, ?)");
-    const insSes = sqlite.prepare(
-      "INSERT INTO sessions (module_id, title, kind, weekday, start_time, end_time) VALUES (?, ?, 'class', ?, ?, ?)",
-    );
-    sqlite.transaction(() => {
-      for (const m of SEED_MODULES) {
-        const { lastInsertRowid } = insMod.run(m.code, m.name, m.color);
-        insSes.run(lastInsertRowid, `${m.code} ${m.name}`, m.weekday, m.start, m.end);
-      }
-    })();
+async function init(c: Client) {
+  if (!REMOTE) {
+    // Rollback-journal mode, deliberately not WAL: a second process (a script, a DB browser) closing its
+    // connection could delete the WAL file this server still has open, losing writes. Single-user app.
+    await c.execute("PRAGMA journal_mode = DELETE");
+    await c.execute("PRAGMA busy_timeout = 5000");
+    await c.execute("PRAGMA foreign_keys = ON");
   }
-  return drizzle(sqlite, { schema });
+  await c.executeMultiple(BOOTSTRAP);
+  await migrate(c);
+  if (Number((await c.execute("SELECT COUNT(*) AS n FROM habits")).rows[0].n) === 0) {
+    for (const [i, name] of ["Reading", "Music practice", "Outreach emails"].entries()) {
+      await c.execute({ sql: "INSERT INTO habits (name, position) VALUES (?, ?)", args: [name, i] });
+    }
+  }
+  const count = Number((await c.execute("SELECT COUNT(*) AS n FROM modules")).rows[0].n);
+  if (count === 0) {
+    for (const m of SEED_MODULES) {
+      const r = await c.execute({ sql: "INSERT INTO modules (code, name, color) VALUES (?, ?, ?)", args: [m.code, m.name, m.color] });
+      await c.execute({
+        sql: "INSERT INTO sessions (module_id, title, kind, weekday, start_time, end_time) VALUES (?, ?, 'class', ?, ?, ?)",
+        args: [Number(r.lastInsertRowid), `${m.code} ${m.name}`, m.weekday, m.start, m.end],
+      });
+    }
+  }
 }
 
-// Reuse one connection across hot reloads in dev. The CREATE IF NOT EXISTS script is idempotent, so
-// re-running it here also picks up tables added by newer code without restarting the server.
-const g = globalThis as unknown as { __db?: ReturnType<typeof open> };
-export const db = (g.__db ??= open());
-db.$client.exec(BOOTSTRAP);
-migrate(db.$client);
+type G = { __libsql?: Client; __dbReady?: Promise<void>; __dbKey?: string };
+const g = globalThis as unknown as G;
+if (!REMOTE) fs.mkdirSync(path.dirname(LOCAL_PATH), { recursive: true });
+const raw: Client = (g.__libsql ??= createClient(REMOTE ? { url: process.env.TURSO_DATABASE_URL!, authToken: process.env.TURSO_AUTH_TOKEN } : { url: `file:${LOCAL_PATH}` }));
+
+// Tables are created / migrated lazily, once per process, on the first query (so building the app never
+// touches a database). If the table definitions change while `npm run dev` is running, it runs again.
+const KEY = String(BOOTSTRAP.length) + ":" + BOOTSTRAP.slice(-200);
+function ensure(): Promise<void> {
+  if (!g.__dbReady || g.__dbKey !== KEY) {
+    g.__dbKey = KEY;
+    g.__dbReady = init(raw).catch((e) => {
+      g.__dbReady = undefined;
+      throw e;
+    });
+  }
+  return g.__dbReady;
+}
+
+const GATED = new Set(["execute", "batch", "transaction", "executeMultiple"]);
+export const client: Client = new Proxy(raw, {
+  get(target, prop, recv) {
+    const v = Reflect.get(target, prop, recv);
+    if (typeof v === "function" && GATED.has(String(prop))) {
+      return async (...args: unknown[]) => {
+        await ensure();
+        return (v as (...a: unknown[]) => unknown).apply(target, args);
+      };
+    }
+    return typeof v === "function" ? v.bind(target) : v;
+  },
+});
+
+export const db = drizzle(client, { schema });
 export { schema };
+
+// ---- raw SQL helpers (plain-object rows, safe to pass to client components) --------------------------
+type Args = InValue[] | Record<string, InValue>;
+const plain = <T>(rs: ResultSet): T[] => rs.rows.map((row) => Object.fromEntries(rs.columns.map((c, i) => [c, row[i]])) as T);
+
+export const q = {
+  async all<T = Record<string, unknown>>(sql: string, args: Args = []): Promise<T[]> {
+    return plain<T>(await client.execute({ sql, args }));
+  },
+  async get<T = Record<string, unknown>>(sql: string, args: Args = []): Promise<T | undefined> {
+    return plain<T>(await client.execute({ sql, args }))[0];
+  },
+  async run(sql: string, args: Args = []) {
+    const r = await client.execute({ sql, args });
+    return { changes: r.rowsAffected, lastInsertRowid: r.lastInsertRowid === undefined ? 0 : Number(r.lastInsertRowid) };
+  },
+  /** Several statements applied atomically (all or nothing). */
+  async batch(stmts: { sql: string; args?: Args }[]) {
+    if (stmts.length === 0) return [];
+    const rs = await client.batch(stmts.map((s) => ({ sql: s.sql, args: s.args ?? [] })), "write");
+    return rs.map((r) => ({ changes: r.rowsAffected, lastInsertRowid: r.lastInsertRowid === undefined ? 0 : Number(r.lastInsertRowid) }));
+  },
+};

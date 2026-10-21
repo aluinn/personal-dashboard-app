@@ -10,8 +10,8 @@ import { addDays, formatDay, londonToday } from "@/lib/time";
 async function Data() {
   await connection();
   const today = londonToday();
-  const habits = loadHabits(addDays(today, -60));
-  const music = loadMusic();
+  const habits = await loadHabits(addDays(today, -60));
+  const music = await loadMusic();
   const week = music.filter((m) => m.date > addDays(today, -7) && m.kind === "practice").reduce((a, m) => a + (m.minutes ?? 0), 0);
   return (
     <div className="grid gap-4 xl:grid-cols-2">

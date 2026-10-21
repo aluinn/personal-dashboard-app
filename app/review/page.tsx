@@ -20,7 +20,7 @@ async function Data({ params }: { params: Promise<{ week?: string }> }) {
   const today = londonToday();
   const thisMon = mondayOf(today);
   const start = week && /^\d{4}-\d{2}-\d{2}$/.test(week) && week <= thisMon ? mondayOf(week) : addDays(thisMon, -7);
-  const r = getReview(start, today);
+  const r = await getReview(start, today);
   const { events } = await loadEvents(21);
   const nowMs = nowMsOf();
   const slim = events.map(({ id, title, start: s, end }) => ({ id, title, start: s, end }));

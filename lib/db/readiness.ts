@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "./index";
+import { q } from "./index";
 import { getSleepTarget, loadSleepRows } from "./health";
 import { loadSessions, loadWatchWorkouts } from "./workouts";
 import { computeReadiness } from "@/lib/readiness";
@@ -8,11 +8,16 @@ import { addDays, londonToday } from "@/lib/time";
 import { dayMap, linkWatch } from "@/lib/workouts";
 
 
-export function getReadiness(today = londonToday()) {
-  const nights = buildNights(loadSleepRows());
-  const target = getSleepTarget();
-  const hrv: HrvRow[] = db.$client.prepare("SELECT day, source, avg FROM hrv_daily").all() as HrvRow[];
-  const { linked, unmatched } = linkWatch(loadSessions(), loadWatchWorkouts());
+export async function getReadiness(today = londonToday()) {
+  const [sleepRows, target, hrv, sessions, watches] = await Promise.all([
+    loadSleepRows(),
+    getSleepTarget(),
+    q.all<HrvRow>("SELECT day, source, avg FROM hrv_daily"),
+    loadSessions(),
+    loadWatchWorkouts(),
+  ]);
+  const nights = buildNights(sleepRows);
+  const { linked, unmatched } = linkWatch(sessions, watches);
   const days = dayMap(linked, unmatched);
   const now = computeReadiness(today, nights, target, hrv, days);
   const prev = computeReadiness(addDays(today, -1), nights, target, hrv, days);

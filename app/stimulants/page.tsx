@@ -6,7 +6,8 @@ import { getStimSettings, stimLogsLastDays, wakeTimeToday } from "@/lib/db/stimu
 
 async function Data() {
   await connection();
-  return <StimulantsView logs={stimLogsLastDays(15)} settings={getStimSettings()} wakeAt={wakeTimeToday()} />;
+  const [logs, settings, wakeAt] = await Promise.all([stimLogsLastDays(15), getStimSettings(), wakeTimeToday()]);
+  return <StimulantsView logs={logs} settings={settings} wakeAt={wakeAt} />;
 }
 
 export default function Page() {

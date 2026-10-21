@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "./index";
+import { q } from "./index";
 import { getTimetableData } from "./queries";
 import { getStimSettings, stimLogsSince } from "./stimulants";
 import { listOpportunities } from "./opp";
@@ -28,9 +28,9 @@ export async function getNotifications(now = Date.now()): Promise<Notif[]> {
   }
 
   // Caffeine cut-off: a heads-up 30 min before, then "stop now" for 4 hours after.
-  const s = getStimSettings();
+  const s = await getStimSettings();
   const cutoff = wallToInstant(today, s.cutoff);
-  const caffeineToday = stimLogsSince(now - 36 * 3600_000).filter((l) => l.kind === "caffeine" && londonDate(l.at) === today);
+  const caffeineToday = (await stimLogsSince(now - 36 * 3600_000)).filter((l) => l.kind === "caffeine" && londonDate(l.at) === today);
   if (now >= cutoff - 30 * 60_000 && now < cutoff) {
     out.push({ id: `caf:soon:${today}`, kind: "caffeine", severity: "warn", push: true, title: `Caffeine cut-off in ${formatCountdown(cutoff - now)}`, detail: `Last call before ${s.cutoff}`, href: "/stimulants" });
   } else if (now >= cutoff && now < cutoff + 4 * 3600_000) {
@@ -42,7 +42,7 @@ export async function getNotifications(now = Date.now()): Promise<Notif[]> {
     if (a.dueAt < now || a.dueAt > now + 7 * DAY) continue;
     out.push({ id: `due:a:${a.id}`, kind: "deadline", severity: a.dueAt - now < 2 * DAY ? "alert" : "warn", title: `Due in ${formatCountdown(a.dueAt - now)}: ${a.title}`, detail: `${a.dueDate} ${a.dueTime}`, href: "/timetable" });
   }
-  for (const o of listOpportunities()) {
+  for (const o of await listOpportunities()) {
     if (o.status !== "saved" || !o.deadline) continue;
     const d = daysBetween(today, o.deadline);
     if (d < 0 || d > 7) continue;
@@ -50,7 +50,7 @@ export async function getNotifications(now = Date.now()): Promise<Notif[]> {
   }
 
   // New in the feed in the last 24h.
-  const fresh = (db.$client.prepare("SELECT COUNT(*) n FROM opportunities WHERE status = 'feed' AND created_at >= ?").get(now - DAY) as { n: number }).n;
+  const fresh = Number((await q.get<{ n: number }>("SELECT COUNT(*) n FROM opportunities WHERE status = 'feed' AND created_at >= ?", [now - DAY]))?.n ?? 0);
   if (fresh > 0) out.push({ id: `opp:new:${today}:${fresh}`, kind: "opportunity", severity: "info", title: `${fresh} new ${fresh === 1 ? "opportunity" : "opportunities"} in your feed`, detail: "Added in the last 24 hours", href: "/opportunities" });
 
   const rank = { alert: 0, warn: 1, info: 2 } as const;

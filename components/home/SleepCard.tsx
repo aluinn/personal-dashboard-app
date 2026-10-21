@@ -7,7 +7,7 @@ import { buildNights, fmtHM, scoresFor } from "@/lib/sleep";
 
 export default async function SleepCard() {
   await connection();
-  const nights = buildNights(loadSleepRows());
+  const nights = buildNights(await loadSleepRows());
   const wrap = "md:col-span-3 xl:col-span-4";
   if (nights.length === 0) {
     return (
@@ -18,7 +18,7 @@ export default async function SleepCard() {
       </Panel>
     );
   }
-  const target = getSleepTarget();
+  const target = await getSleepTarget();
   const scores = scoresFor(nights, target);
   const last = nights[nights.length - 1];
   const recent = nights.slice(-14);

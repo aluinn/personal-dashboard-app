@@ -6,8 +6,8 @@ import { londonDate } from "@/lib/time";
 // Feeds the in-browser notifier (components/opportunities/Notifier.tsx).
 export async function GET() {
   await connection();
-  const config = getMatchConfig();
-  const items = listOpportunities()
+  const config = await getMatchConfig();
+  const items = (await listOpportunities())
     .filter((o) => o.status === "saved" || o.status === "feed")
     .map((o) => ({
       id: o.id,

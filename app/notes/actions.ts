@@ -15,13 +15,13 @@ export async function syncNow(): Promise<SyncResult> {
 export async function saveNotionSettings(f: FormData) {
   const raw = String(f.get("database") ?? "").trim();
   // Keep only what's needed (a URL or id of a database); never accept anything that isn't a Notion id.
-  setSetting("notionDatabase", raw && notionId(raw) ? raw : "");
+  await setSetting("notionDatabase", raw && notionId(raw) ? raw : "");
   const hrs = Number(f.get("hours"));
-  setSetting("notionSyncHours", Number.isFinite(hrs) ? Math.max(0, Math.min(72, Math.round(hrs))) : 3);
+  await setSetting("notionSyncHours", Number.isFinite(hrs) ? Math.max(0, Math.min(72, Math.round(hrs))) : 3);
   revalidatePath("/", "layout");
 }
 
 export async function saveTermDatesAction(f: FormData) {
-  saveTermDates(f);
+  await saveTermDates(f);
   revalidatePath("/", "layout");
 }

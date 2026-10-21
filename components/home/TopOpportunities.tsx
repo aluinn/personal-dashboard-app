@@ -8,9 +8,9 @@ import { londonToday } from "@/lib/time";
 
 export default async function TopOpportunities() {
   await connection();
-  const config = getMatchConfig();
+  const config = await getMatchConfig();
   const today = londonToday();
-  const top = listOpportunities()
+  const top = (await listOpportunities())
     .filter((o) => o.status === "feed" || o.status === "saved")
     .map((o) => ({ o, t: timing(o, today), m: scoreListing(o, config) }))
     .filter((x) => x.t.state === "open")

@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "@/lib/db";
+import { q } from "@/lib/db";
 import { getSetting, setSetting } from "@/lib/db/opp";
 import { getTermDates } from "@/lib/db/academic";
 import { CURRENT_YEAR, termOf, weekOfTerm } from "@/lib/academic";
@@ -36,17 +36,19 @@ type Target = {
 const MAX_PAGES = 250;
 const g = globalThis as unknown as { __notion_sync?: Promise<SyncResult> };
 
-export const getNotionStatus = () => ({
-  tokenSet: notionConfigured(),
-  database: getSetting<string>("notionDatabase", ""),
-  hours: getSetting<number>("notionSyncHours", 3),
-  last: getSetting<SyncResult | null>("notionLastSync", null),
-});
+export async function getNotionStatus() {
+  const [database, hours, last] = await Promise.all([
+    getSetting<string>("notionDatabase", ""),
+    getSetting<number>("notionSyncHours", 3),
+    getSetting<SyncResult | null>("notionLastSync", null),
+  ]);
+  return { tokenSet: notionConfigured(), database, hours, last };
+}
 
-export function syncDue() {
-  const s = getNotionStatus();
+export async function syncDue() {
+  const s = await getNotionStatus();
   if (!s.tokenSet || s.hours <= 0) return false;
-  if (!s.database && !(db.$client.prepare("SELECT COUNT(*) n FROM modules WHERE notion_url <> ''").get() as { n: number }).n) return false;
+  if (!s.database && !Number((await q.get<{ n: number }>("SELECT COUNT(*) n FROM modules WHERE notion_url <> ''"))?.n ?? 0)) return false;
   return !s.last || Date.now() - s.last.at >= s.hours * 3600_000;
 }
 
@@ -108,14 +110,13 @@ const rowToTarget = (p: any, module: string | null, mods: { code: string; name: 
 
 async function run(): Promise<SyncResult> {
   const res: SyncResult = { ok: true, at: Date.now(), pages: 0, fetched: 0, removed: 0, perModule: {}, unassigned: 0, notes: [] };
-  const c = db.$client;
-  const mods = c.prepare("SELECT code, name, notion_url AS url FROM modules WHERE year = ?").all(CURRENT_YEAR) as { code: string; name: string; url: string }[];
-  const terms = getTermDates();
+  const mods = await q.all<{ code: string; name: string; url: string }>("SELECT code, name, notion_url AS url FROM modules WHERE year = ?", [CURRENT_YEAR]);
+  const terms = await getTermDates();
   const targets = new Map<string, Target>();
   const errors: string[] = [];
 
   // A) one database with a Module property (or module code in the title)
-  const dbId = notionId(getSetting<string>("notionDatabase", ""));
+  const dbId = notionId(await getSetting<string>("notionDatabase", ""));
   if (dbId) {
     try {
       const rows = await listAll(`/databases/${dbId}/query`, {});
@@ -156,12 +157,11 @@ async function run(): Promise<SyncResult> {
   });
   if (list.length > MAX_PAGES) res.notes.push(`Only the first ${MAX_PAGES} of ${list.length} pages were synced.`);
   const seen = new Set<string>();
-  const cached = new Map((c.prepare("SELECT external_id AS id, edited_at AS at FROM notes WHERE source = 'notion'").all() as { id: string; at: number }[]).map((r) => [r.id, r.at]));
-  const getBlocks = c.prepare("SELECT blocks, words, preview FROM notes WHERE source='notion' AND external_id = ?");
-  const upsert = c.prepare(`INSERT INTO notes (source, external_id, module_code, year, term, week, title, preview, tags, words, blocks, url, edited_at, synced_at)
+  const cached = new Map((await q.all<{ id: string; at: number }>("SELECT external_id AS id, edited_at AS at FROM notes WHERE source = 'notion'")).map((r) => [r.id, r.at]));
+  const UPSERT = `INSERT INTO notes (source, external_id, module_code, year, term, week, title, preview, tags, words, blocks, url, edited_at, synced_at)
     VALUES ('notion', @id, @module, @year, @term, @week, @title, @preview, @tags, @words, @blocks, @url, @edited, @now)
     ON CONFLICT(source, external_id) DO UPDATE SET module_code=@module, year=@year, term=@term, week=@week, title=@title, preview=@preview,
-      tags=@tags, words=@words, blocks=@blocks, url=@url, edited_at=@edited, synced_at=@now`);
+      tags=@tags, words=@words, blocks=@blocks, url=@url, edited_at=@edited, synced_at=@now`;
 
   for (const t of list.slice(0, MAX_PAGES)) {
     seen.add(t.id);
@@ -169,7 +169,7 @@ async function run(): Promise<SyncResult> {
       let blocks: Block[] | null = null;
       let words: number, preview: string;
       if (cached.get(t.id) === t.edited) {
-        const row = getBlocks.get(t.id) as { blocks: string; words: number; preview: string };
+        const row = (await q.get<{ blocks: string; words: number; preview: string }>("SELECT blocks, words, preview FROM notes WHERE source='notion' AND external_id = ?", [t.id]))!;
         blocks = JSON.parse(row.blocks) as Block[];
         words = row.words;
         preview = row.preview;
@@ -185,7 +185,7 @@ async function run(): Promise<SyncResult> {
       const titleWeek = /week\s*(\d+)/i.exec(t.title)?.[1];
       // Week: the page's Week property, else "Week N" in the title, else the teaching week it was created in.
       const week = f?.week ?? (titleWeek ? Number(titleWeek) : weekOfTerm(createdDay, terms));
-      upsert.run({
+      await q.run(UPSERT, {
         id: t.id, module: t.module, year: f?.year ?? CURRENT_YEAR, term, week,
         title: t.title, preview, tags: JSON.stringify([...new Set([...(f?.tags ?? []), ...hashTags(blocks)])].slice(0, 12)),
         words, blocks: JSON.stringify(blocks), url: t.url, edited: t.edited, now: res.at,
@@ -199,10 +199,9 @@ async function run(): Promise<SyncResult> {
 
   // Pages that were deleted or un-shared disappear from the dashboard, but only after a clean run.
   if (errors.length === 0) {
-    const del = c.prepare("DELETE FROM notes WHERE source='notion' AND external_id = ?");
     for (const id of cached.keys()) {
       if (seen.has(id)) continue;
-      del.run(id);
+      await q.run("DELETE FROM notes WHERE source='notion' AND external_id = ?", [id]);
       res.removed++;
     }
   }
@@ -221,8 +220,8 @@ export function syncNotes(): Promise<SyncResult> {
   }
   g.__notion_sync ??= run()
     .catch((e): SyncResult => ({ ok: false, at: Date.now(), pages: 0, fetched: 0, removed: 0, perModule: {}, unassigned: 0, notes: [], error: (e as Error).message }))
-    .then((r) => {
-      setSetting("notionLastSync", r);
+    .then(async (r) => {
+      await setSetting("notionLastSync", r);
       return r;
     })
     .finally(() => {

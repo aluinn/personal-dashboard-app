@@ -6,7 +6,7 @@ import { PROJECTS } from "@/lib/life";
 
 export default async function ProjectsCard() {
   await connection();
-  const links = getProjectLinks();
+  const links = await getProjectLinks();
   const anyLinks = Object.values(links).some((l) => l.length);
   return (
     <Panel label="PROJECTS" meta={<Link href="/settings" className="hover:text-teal">Edit links →</Link>} delay={0.5} accent="violet" className="md:col-span-3 xl:col-span-4">

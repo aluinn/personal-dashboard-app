@@ -10,7 +10,7 @@ const LABEL: Record<string, string> = { sleep: "sleep", hrv: "HRV", load: "train
 
 export default async function ReadinessHero() {
   await connection();
-  const r = getReadiness();
+  const r = await getReadiness();
   const trend = r.delta === null ? null : r.delta === 0 ? "same as yesterday" : `${r.delta > 0 ? "+" : ""}${r.delta} vs yesterday`;
   return (
     <Panel label="READINESS // TODAY" meta={r.score === null ? "NO DATA" : "LIVE"} accent="violet" className="min-h-[420px] md:col-span-6 xl:col-span-8 xl:row-span-3">

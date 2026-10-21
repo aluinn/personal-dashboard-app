@@ -35,14 +35,14 @@ async function importAppleStream(stream: Readable, totalBytes: number, emit: Emi
   try {
     const { batch, counts } = await parseAppleXml(counter);
     emit({ type: "progress", phase: "saving", pct: 99, message: "Saving…" });
-    const saved = applyBatch(batch, "apple");
+    const saved = await applyBatch(batch, "apple");
     return { kind: "Apple Health export", counts, saved };
   } finally {
     clearInterval(timer);
   }
 }
 
-function importTextFile(name: string, text: string) {
+async function importTextFile(name: string, text: string) {
   if (/\.json$/i.test(name)) {
     let json: unknown;
     try {
@@ -52,13 +52,13 @@ function importTextFile(name: string, text: string) {
     }
     const hae = looksLikeHae(json);
     const batch = hae ? mapHaeJson(json) : mapNativeJson(json);
-    return { kind: hae ? "Health Auto Export JSON" : "JSON", saved: applyBatch(batch, "hae"), note: undefined as string | undefined };
+    return { kind: hae ? "Health Auto Export JSON" : "JSON", saved: await applyBatch(batch, "hae"), note: undefined as string | undefined };
   }
   const r = mapHealthCsv(text);
   if (r.error) throw new Error(`${name}: ${r.error}`);
   return {
     kind: "CSV",
-    saved: applyBatch(r.batch, "hae"),
+    saved: await applyBatch(r.batch, "hae"),
     note: `Used columns: ${r.recognised.join("; ")}${r.ignored.length ? `. Ignored: ${r.ignored.join(", ")}` : ""}`,
   };
 }
@@ -77,14 +77,14 @@ export async function importHealthFile(file: string, filename: string, emit: Emi
         results.push(await importAppleStream(await open(), e.size, emit));
       } else if (/\.(csv|json)$/i.test(base) && !sawApple) {
         emit({ type: "progress", phase: "processing", message: `Reading ${base}…` });
-        results.push({ file: base, ...importTextFile(base, await readText(await open())) });
+        results.push({ file: base, ...(await importTextFile(base, await readText(await open()))) });
       }
     });
     if (results.length === 0) throw new Error("That zip has no export.xml, CSV or JSON files I can read.");
   } else if (lower.endsWith(".xml")) {
     results.push(await importAppleStream(fs.createReadStream(file), fs.statSync(file).size, emit));
   } else if (/\.(csv|tsv|txt|json)$/.test(lower)) {
-    results.push({ file: filename, ...importTextFile(filename, fs.readFileSync(file, "utf8")) });
+    results.push({ file: filename, ...(await importTextFile(filename, fs.readFileSync(file, "utf8"))) });
   } else {
     throw new Error("Unsupported file. Use Apple Health export.zip / export.xml, or a CSV / JSON file.");
   }

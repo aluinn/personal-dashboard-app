@@ -9,6 +9,6 @@ export async function saveEventFeeds(f: FormData) {
     .map((l) => l.trim())
     .filter(Boolean)
     .slice(0, 15);
-  setSetting("eventFeeds", lines);
+  await setSetting("eventFeeds", lines);
   revalidatePath("/", "layout");
 }

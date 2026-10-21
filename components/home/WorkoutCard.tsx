@@ -12,10 +12,9 @@ const ago = (from: string, to: string) => {
 
 export default async function WorkoutCard() {
   await connection();
-  const sessions = loadSessions();
-  const { linked, unmatched } = linkWatch(sessions, loadWatchWorkouts());
+  const [sessions, watches, target] = await Promise.all([loadSessions(), loadWatchWorkouts(), getWeeklyTarget()]);
+  const { linked, unmatched } = linkWatch(sessions, watches);
   const today = londonToday();
-  const target = getWeeklyTarget();
   const counts = weeklyCounts(dayMap(linked, unmatched), today, 52);
   const week = counts[counts.length - 1]?.count ?? 0;
   const streak = weekStreak(counts, target);

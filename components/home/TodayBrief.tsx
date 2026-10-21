@@ -11,8 +11,8 @@ export default async function TodayBrief() {
   await connection();
   const { modules, sessions } = await getTimetableData();
   const today = londonToday();
-  const ws = loadSessions();
-  const { linked, unmatched } = linkWatch(ws, loadWatchWorkouts());
+  const [ws, watches, weeklyTarget, settings, wakeAt] = await Promise.all([loadSessions(), loadWatchWorkouts(), getWeeklyTarget(), getStimSettings(), wakeTimeToday()]);
+  const { linked, unmatched } = linkWatch(ws, watches);
   const trained = new Set(dayMap(linked, unmatched).keys());
   const plan = planFor(ws, trained, today, addDays);
   return (
@@ -20,8 +20,8 @@ export default async function TodayBrief() {
       modules={modules}
       sessions={sessions}
       plan={plan}
-      weeklyTarget={getWeeklyTarget()}
-      stim={{ settings: getStimSettings(), wakeAt: wakeTimeToday() }}
+      weeklyTarget={weeklyTarget}
+      stim={{ settings, wakeAt }}
     />
   );
 }

@@ -8,11 +8,11 @@ import { londonDate, londonToday } from "@/lib/time";
 export default async function StimulantCard() {
   await connection();
   const today = londonToday();
-  const logs = stimLogsLastDays(2).filter((l) => londonDate(l.at) === today);
+  const logs = (await stimLogsLastDays(2)).filter((l) => londonDate(l.at) === today);
   const caf = logs.filter((l) => l.kind === "caffeine");
   const mg = Math.round(caf.reduce((a, l) => a + l.mg, 0));
   const nic = logs.filter((l) => l.kind === "nicotine");
-  const max = getStimSettings().maxMg;
+  const max = (await getStimSettings()).maxMg;
   const last = caf[0] && new Date(caf[0].at).toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" });
   return (
     <Panel label="STIMULANTS // TODAY" meta={<Link href="/stimulants" className="hover:text-teal">Open →</Link>} delay={0.15} className="md:col-span-3 xl:col-span-4">

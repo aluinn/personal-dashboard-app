@@ -35,6 +35,6 @@ export async function POST(req: Request) {
     text: pick("text", "TextBody"),
     html: pick("html", "HtmlBody"),
   });
-  const res = insertRows(rows, { status: "feed", source: "email" });
+  const res = await insertRows(rows, { status: "feed", source: "email" });
   return NextResponse.json({ parsed: rows.length, ...res });
 }
