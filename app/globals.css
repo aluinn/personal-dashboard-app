@@ -1,26 +1,173 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #05080a;
+  --panel: rgba(12, 20, 24, 0.62);
+  --panel-solid: #0a1115;
+  --line: rgba(120, 220, 214, 0.14);
+  --line-strong: rgba(46, 230, 214, 0.45);
+  --teal: #2ee6d6;
+  --violet: #7c5cff;
+  --magenta: #e052ff;
+  --text: #e6f1f0;
+  --muted: #7d9392;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-line: var(--line);
+  --color-teal: var(--teal);
+  --color-violet: var(--violet);
+  --color-magenta: var(--magenta);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-inter), system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-image:
+    radial-gradient(900px 500px at 85% -10%, rgba(124, 92, 255, 0.12), transparent 60%),
+    radial-gradient(700px 500px at 10% 110%, rgba(46, 230, 214, 0.08), transparent 60%);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgba(46, 230, 214, 0.3);
+}
+
+/* Thin scrollbars to match the HUD look */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(46, 230, 214, 0.25) transparent;
+}
+
+/* Scanlines + film grain over everything (non-interactive) */
+.fx-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.025) 0px,
+      rgba(255, 255, 255, 0.025) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+}
+
+.micro {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.glow-text {
+  text-shadow: 0 0 18px rgba(46, 230, 214, 0.45);
+}
+
+.flow-gradient {
+  background: linear-gradient(90deg, var(--violet), var(--magenta));
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+.blink {
+  animation: blink 1.6s steps(2, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Form fields (Settings, add-forms) */
+.field {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  color-scheme: dark;
+}
+.field:focus {
+  border-color: var(--line-strong);
+}
+.btn {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border: 1px solid var(--line-strong);
+  color: var(--teal);
+  padding: 6px 12px;
+  border-radius: 2px;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+.btn:hover {
+  background: rgba(46, 230, 214, 0.12);
+}
+
+/* Subtle accent pulse for current / next class (uses --c set on the element) */
+@keyframes accentPulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 26px -6px var(--c, #2ee6d6); }
+}
+.pulse-accent {
+  animation: accentPulse 3.2s ease-in-out infinite;
+}
+
+@keyframes ping {
+  0% { transform: scale(1); opacity: 0.7; }
+  80%, 100% { transform: scale(2.6); opacity: 0; }
+}
+.ping {
+  animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Phones: 16px inputs stop iOS Safari zooming the page when a field is focused. */
+@media (max-width: 767px) {
+  .field {
+    font-size: 16px;
+  }
+}
+
+@keyframes prPop {
+  0% { transform: scale(0.4) rotate(-8deg); opacity: 0; }
+  60% { transform: scale(1.15) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+@keyframes prGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 179, 71, 0); }
+  50% { box-shadow: 0 0 18px 2px rgba(255, 179, 71, 0.55); }
+}
+.pr-badge {
+  animation: prPop 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both, prGlow 2.2s ease-in-out 0.6s infinite;
 }

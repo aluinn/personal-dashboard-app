@@ -1,0 +1,30 @@
+import {
+  LayoutGrid,
+  CalendarDays,
+  NotebookText,
+  Briefcase,
+  Radio,
+  Moon,
+  Dumbbell,
+  Coffee,
+  Settings,
+  ClipboardList,
+  Target,
+  Repeat2,
+  type LucideIcon,
+} from "lucide-react";
+
+export const nav: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/", label: "Home", icon: LayoutGrid },
+  { href: "/timetable", label: "Timetable", icon: CalendarDays },
+  { href: "/notes", label: "Notes", icon: NotebookText },
+  { href: "/opportunities", label: "Opportunities", icon: Briefcase },
+  { href: "/events", label: "Tech Events", icon: Radio },
+  { href: "/health/sleep", label: "Sleep", icon: Moon },
+  { href: "/health/workouts", label: "Workouts", icon: Dumbbell },
+  { href: "/stimulants", label: "Stimulants", icon: Coffee },
+  { href: "/review", label: "Review", icon: ClipboardList },
+  { href: "/habits", label: "Habits", icon: Repeat2 },
+  { href: "/goals", label: "Goals", icon: Target },
+  { href: "/settings", label: "Settings", icon: Settings },
+];

@@ -1,69 +1,42 @@
-import Image from "next/image";
+import Panel from "@/components/ui/Panel";
+import { Suspense, type ReactNode } from "react";
+import { DeadlinesData, TodayData } from "@/components/home/HomeDbCards";
+import TopOpportunities from "@/components/home/TopOpportunities";
+import EventsCard from "@/components/home/EventsCard";
+import SleepCard from "@/components/home/SleepCard";
+import WorkoutCard from "@/components/home/WorkoutCard";
+import ReadinessHero from "@/components/home/ReadinessHero";
+import TodayBrief from "@/components/home/TodayBrief";
+import StimulantCard from "@/components/home/StimulantCard";
+import HabitsCard from "@/components/home/HabitsCard";
+import ProjectsCard from "@/components/home/ProjectsCard";
+import GalaxyCard from "@/components/home/GalaxyCard";
+import GoalsCard from "@/components/home/GoalsCard";
+
+const Slot = ({ label, className, children }: { label: string; className: string; children: ReactNode }) => (
+  <Suspense fallback={<Panel label={label} className={className}><div className="micro">Loading…</div></Panel>}>{children}</Suspense>
+);
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="grid auto-rows-[minmax(120px,auto)] grid-cols-1 gap-4 md:grid-cols-6 xl:grid-cols-12">
+      <Slot label="READINESS // TODAY" className="min-h-[420px] md:col-span-6 xl:col-span-8 xl:row-span-3"><ReadinessHero /></Slot>
+      <Slot label="TODAY // BRIEF" className="md:col-span-6 xl:col-span-4"><TodayBrief /></Slot>
+      <Slot label="LATEST SLEEP" className="md:col-span-3 xl:col-span-4"><SleepCard /></Slot>
+      <Slot label="STIMULANTS // TODAY" className="md:col-span-3 xl:col-span-4"><StimulantCard /></Slot>
+
+      <Slot label="TODAY // TIMETABLE" className="md:col-span-3 xl:col-span-4"><TodayData /></Slot>
+      <Slot label="NEXT DEADLINES" className="md:col-span-3 xl:col-span-4"><DeadlinesData /></Slot>
+      <Slot label="WORKOUTS" className="md:col-span-3 xl:col-span-4"><WorkoutCard /></Slot>
+
+      <Slot label="TOP 3 // OPEN OPPORTUNITIES" className="md:col-span-6 xl:col-span-8"><TopOpportunities /></Slot>
+      <Slot label="NEXT 3 // TECH EVENTS" className="md:col-span-6 xl:col-span-4"><EventsCard /></Slot>
+
+      <Slot label="KNOWLEDGE GALAXY" className="md:col-span-6 xl:col-span-12"><GalaxyCard /></Slot>
+
+      <Slot label="HABITS // TODAY" className="md:col-span-3 xl:col-span-4"><HabitsCard /></Slot>
+      <Slot label="PROJECTS" className="md:col-span-3 xl:col-span-4"><ProjectsCard /></Slot>
+      <Slot label="GOALS" className="md:col-span-6 xl:col-span-4"><GoalsCard /></Slot>
     </div>
   );
 }
