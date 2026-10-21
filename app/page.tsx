@@ -11,6 +11,7 @@ import StimulantCard from "@/components/home/StimulantCard";
 import HabitsCard from "@/components/home/HabitsCard";
 import ProjectsCard from "@/components/home/ProjectsCard";
 import GalaxyCard from "@/components/home/GalaxyCard";
+import DoneCard from "@/components/home/DoneCard";
 import GoalsCard from "@/components/home/GoalsCard";
 
 const Slot = ({ label, className, children }: { label: string; className: string; children: ReactNode }) => (
@@ -24,6 +25,8 @@ export default function Home() {
       <Slot label="TODAY // BRIEF" className="md:col-span-6 xl:col-span-4"><TodayBrief /></Slot>
       <Slot label="LATEST SLEEP" className="md:col-span-3 xl:col-span-4"><SleepCard /></Slot>
       <Slot label="STIMULANTS // TODAY" className="md:col-span-3 xl:col-span-4"><StimulantCard /></Slot>
+
+      <Slot label="DONE TODAY" className="md:col-span-6 xl:col-span-12"><DoneCard /></Slot>
 
       <Slot label="TODAY // TIMETABLE" className="md:col-span-3 xl:col-span-4"><TodayData /></Slot>
       <Slot label="NEXT DEADLINES" className="md:col-span-3 xl:col-span-4"><DeadlinesData /></Slot>

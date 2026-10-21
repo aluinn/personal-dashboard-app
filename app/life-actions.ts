@@ -28,6 +28,18 @@ export async function archiveHabit(id: number) {
   refresh();
 }
 
+// ---- done today
+export async function addDone(text: string) {
+  const t = String(text ?? "").trim().slice(0, 140);
+  if (!t) return;
+  await q.run("INSERT INTO done_items (date, text, at) VALUES (?, ?, ?)", [londonToday(), t, Date.now()]);
+  refresh();
+}
+export async function deleteDone(id: number) {
+  await q.run("DELETE FROM done_items WHERE id = ?", [Number(id)]);
+  refresh();
+}
+
 // ---- goals
 export async function saveGoal(f: FormData) {
   const title = s(f, "title").slice(0, 120);

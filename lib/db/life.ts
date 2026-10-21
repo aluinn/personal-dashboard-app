@@ -11,6 +11,12 @@ export async function loadHabits(sinceDate: string): Promise<Habit[]> {
   return habits.map((h) => ({ ...h, dates: logs.filter((l) => l.habit_id === h.id).map((l) => l.date) }));
 }
 
+export type DoneItem = { id: number; text: string; at: number };
+export const loadDone = (date: string) => q.all<DoneItem>("SELECT id, text, at FROM done_items WHERE date = ? ORDER BY at DESC, id DESC", [date]);
+/** Things you've logged recently, most frequent first, for one-tap re-adding. */
+export const recentDoneTexts = (sinceDate: string) =>
+  q.all<{ text: string; n: number }>("SELECT text, COUNT(*) n FROM done_items WHERE date >= ? GROUP BY text ORDER BY n DESC, MAX(at) DESC LIMIT 6", [sinceDate]);
+
 export type Goal = { id: number; title: string; category: string; status: string; targetDate: string | null; notes: string };
 export const loadGoals = () =>
   q.all<Goal>("SELECT id, title, category, status, target_date AS targetDate, notes FROM goals ORDER BY (target_date IS NULL), target_date, id");

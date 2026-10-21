@@ -220,6 +220,14 @@ CREATE TABLE IF NOT EXISTS notes (
 );
 CREATE INDEX IF NOT EXISTS notes_module ON notes(module_code);
 
+CREATE TABLE IF NOT EXISTS done_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  date TEXT NOT NULL,            -- London day, YYYY-MM-DD
+  text TEXT NOT NULL,
+  at INTEGER NOT NULL            -- UTC ms
+);
+CREATE INDEX IF NOT EXISTS done_items_date ON done_items(date);
+
 CREATE TABLE IF NOT EXISTS note_files (
   note_id INTEGER PRIMARY KEY,
   name TEXT NOT NULL,
