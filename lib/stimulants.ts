@@ -5,6 +5,8 @@ export const PRESETS = [
   { kind: "caffeine", label: "Coffee", mg: 95 },
   { kind: "caffeine", label: "Espresso", mg: 63 },
   { kind: "caffeine", label: "Tea", mg: 40 },
+  { kind: "caffeine", label: "Red Bull", mg: 80 }, // 250 ml can
+  { kind: "caffeine", label: "Red Bull (355 ml)", mg: 114 },
   { kind: "caffeine", label: "Energy drink", mg: 80 },
   { kind: "nicotine", label: "Velo", mg: 10 },
 ] as const;

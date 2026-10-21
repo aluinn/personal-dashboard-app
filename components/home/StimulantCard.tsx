@@ -32,7 +32,7 @@ export default async function StimulantCard() {
         <div className={`h-full ${mg > max ? "bg-magenta" : "flow-gradient"}`} style={{ width: `${Math.min(100, (mg / max) * 100)}%` }} />
       </div>
       <div className="micro mt-2 normal-case tracking-wide">{last ? `Last caffeine ${last}` : "Nothing logged today"}</div>
-      <div className="mt-3"><QuickLog only={["Coffee", "Velo"]} /></div>
+      <div className="mt-3"><QuickLog only={["Coffee", "Red Bull", "Velo"]} /></div>
     </Panel>
   );
 }
