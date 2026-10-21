@@ -18,8 +18,11 @@ function same(a: string, b: string) {
 export function proxy(req: NextRequest) {
   const pw = process.env.DASHBOARD_PASSWORD;
   if (OPEN.some((r) => r.test(req.nextUrl.pathname))) return NextResponse.next();
-  // On Vercel the app is on the public internet: refuse to serve your data without a password.
-  if (!pw && process.env.VERCEL) return new NextResponse("Set DASHBOARD_PASSWORD in the Vercel project's environment variables, then redeploy.", { status: 503 });
+  // Once a real database is connected on Vercel, the app is your personal data on the public internet:
+  // refuse to serve it without a password. (Without a database it's just the empty demo.)
+  if (!pw && process.env.VERCEL && process.env.TURSO_DATABASE_URL) {
+    return new NextResponse("Your database is connected, so the site needs a password. Add DASHBOARD_PASSWORD in the Vercel project's environment variables, then redeploy.", { status: 503 });
+  }
   if (!pw) return NextResponse.next();
   const given = (req.headers.get("authorization") ?? "").match(/^Basic\s+(.+)$/i)?.[1];
   if (given) {

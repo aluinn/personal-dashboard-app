@@ -5,18 +5,17 @@ import { getTermDates } from "./academic";
 import { CURRENT_YEAR, termOf, termWeeks } from "@/lib/academic";
 import { SEED_NOTES, SEED_KIND_LABEL, type SeedNote } from "@/data/seed-notes";
 import type { ModuleSummary, NoteItem, ReadingNote } from "@/lib/notes";
-import { getNotionStatus } from "@/lib/notion/sync";
-import type { Block } from "@/lib/notion/types";
+import type { Block } from "@/lib/notes-blocks";
 import { londonToday } from "@/lib/time";
 
-type Row = { id: number; module_code: string; title: string; tags: string; words: number; edited_at: number; week: number | null; term: string; year: number; preview: string; url: string };
+type Row = { id: number; source: string; module_code: string; title: string; tags: string; words: number; edited_at: number; week: number | null; term: string; year: number; preview: string; url: string };
 
 const seedWords = (s: SeedNote) => s.body.join(" ").split(/\s+/).filter(Boolean).length + s.title.split(/\s+/).length;
 const seedPreview = (s: SeedNote) => s.body.filter((l) => !l.startsWith("- ")).join(" ").slice(0, 200);
 
 const seedItem = (s: SeedNote, term: string, year: number): NoteItem => ({
   id: `s-${s.slug}`, module: s.module, title: s.title, tags: s.tags, words: seedWords(s), editedAt: null, week: s.week, term, year,
-  placeholder: true, preview: seedPreview(s), url: "", kind: SEED_KIND_LABEL[s.kind],
+  placeholder: true, preview: seedPreview(s), url: "", hasPdf: false, kind: SEED_KIND_LABEL[s.kind],
 });
 
 export async function getNotesData() {
@@ -25,18 +24,18 @@ export async function getNotesData() {
   const today = londonToday();
   const currentTerm = termOf(today, terms);
 
-  const [mods, rows, due, status] = await Promise.all([
+  const [mods, rows, due] = await Promise.all([
     q.all<{ id: number; code: string; name: string; color: string; term: string; year: number; notionUrl: string }>("SELECT id, code, name, color, term, year, notion_url AS notionUrl FROM modules WHERE year = ? ORDER BY code", [CURRENT_YEAR]),
-    q.all<Row>("SELECT id, module_code, title, tags, words, edited_at, week, term, year, preview, url FROM notes WHERE year = ? ORDER BY edited_at DESC", [CURRENT_YEAR]),
+    q.all<Row>("SELECT id, source, module_code, title, tags, words, edited_at, week, term, year, preview, url FROM notes WHERE year = ? ORDER BY edited_at DESC", [CURRENT_YEAR]),
     q.all<{ id: number; moduleId: number; title: string; dueDate: string; dueTime: string; weight: number | null; term: string }>(
       "SELECT id, module_id AS moduleId, title, due_date AS dueDate, due_time AS dueTime, weight, term FROM assessments WHERE year = ? AND progress < 100 AND due_date >= ? ORDER BY due_date, due_time",
       [CURRENT_YEAR, today],
     ),
-    getNotionStatus(),
   ]);
   const real: NoteItem[] = rows.map((r) => ({
     id: `n-${r.id}`, module: r.module_code, title: r.title, tags: JSON.parse(r.tags) as string[], words: r.words, editedAt: r.edited_at,
-    week: r.week, term: r.term, year: r.year, placeholder: false, preview: r.preview, url: r.url,
+    week: r.week, term: r.term, year: r.year, placeholder: false, preview: r.preview,
+    url: r.source === "pdf" ? `/api/notes/${r.id}/pdf` : r.url, hasPdf: r.source === "pdf",
   }));
   const hasReal = new Set(real.map((n) => n.module));
   // Placeholders only for modules that have no real pages yet.
@@ -56,11 +55,11 @@ export async function getNotesData() {
       deadlines: due.filter((d) => d.moduleId === m.id).slice(0, 4).map((d) => ({ id: d.id, title: d.title, dueDate: d.dueDate, dueTime: d.dueTime, weight: d.weight, term: d.term })),
     };
   });
-  return { modules, notes, status, currentTerm, today };
+  return { modules, notes, currentTerm, today };
 }
 
 const toBlocks = (s: SeedNote): Block[] => {
-  const out: Block[] = [{ t: "callout", icon: "🧪", text: [{ s: "Placeholder note. Replace it by writing the real one in Notion and syncing." }] }];
+  const out: Block[] = [{ t: "callout", icon: "🧪", text: [{ s: "Placeholder note. Replace it by exporting the real lecture from Notion as a PDF and uploading it on the Notes page." }] }];
   for (const line of s.body) out.push(line.startsWith("- ") ? { t: "ul", text: [{ s: line.slice(2) }] } : { t: "p", text: [{ s: line }] });
   return out;
 };

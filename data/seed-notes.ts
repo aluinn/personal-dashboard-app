@@ -1,7 +1,7 @@
 // PLACEHOLDER notes for Year 2 (2026-27). They exist so the Notes page and the Knowledge Galaxy have
-// something to show before your real notes are in Notion. They are generic outlines written as
+// something to show before your real lecture PDFs are uploaded. They are generic outlines written as
 // stand-ins, not your lecturers' actual syllabus, and every one is badged "placeholder" in the app.
-// As soon as a module has at least one real page synced from Notion, that module's placeholders vanish.
+// As soon as a module has at least one real lecture uploaded (Notion → Export → PDF), its placeholders vanish.
 
 export type SeedNote = {
   slug: string;

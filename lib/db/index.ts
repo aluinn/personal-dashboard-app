@@ -10,7 +10,11 @@ import * as schema from "./schema";
 //     persistent disk. Also usable locally, so you can import big files from your Mac into the cloud DB.
 //   - otherwise a local file, data/dashboard.db (what `npm run dev` uses by default).
 const REMOTE = Boolean(process.env.TURSO_DATABASE_URL);
-const LOCAL_PATH = path.join(process.cwd(), "data", "dashboard.db");
+// On Vercel the only writable place is /tmp, which is wiped between instances. Without Turso configured the
+// app still runs there (as a demo whose data doesn't stick) instead of crashing on a read-only disk.
+const ON_VERCEL = Boolean(process.env.VERCEL);
+export const EPHEMERAL = ON_VERCEL && !REMOTE;
+const LOCAL_PATH = ON_VERCEL ? "/tmp/dashboard.db" : path.join(process.cwd(), "data", "dashboard.db");
 
 const BOOTSTRAP = `
 CREATE TABLE IF NOT EXISTS modules (
@@ -215,6 +219,13 @@ CREATE TABLE IF NOT EXISTS notes (
   UNIQUE (source, external_id)
 );
 CREATE INDEX IF NOT EXISTS notes_module ON notes(module_code);
+
+CREATE TABLE IF NOT EXISTS note_files (
+  note_id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  mime TEXT NOT NULL DEFAULT 'application/pdf',
+  data BLOB NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS music_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

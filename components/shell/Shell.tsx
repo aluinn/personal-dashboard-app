@@ -8,7 +8,7 @@ import TopBar from "./TopBar";
 import CommandPalette from "./CommandPalette";
 import Notifier from "@/components/opportunities/Notifier";
 
-export default function Shell({ children }: { children: ReactNode }) {
+export default function Shell({ children, demo = false }: { children: ReactNode; demo?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <MotionConfig reducedMotion="user">
@@ -20,6 +20,12 @@ export default function Shell({ children }: { children: ReactNode }) {
       </Suspense>
       <div className="pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0 md:pl-16">
         <TopBar onOpenPalette={() => setOpen(true)} />
+        {demo && (
+          <div role="status" className="border-b border-[#c4811a]/50 bg-[#c4811a]/10 px-4 py-2 text-xs text-[#e0a040]">
+            <b>Demo mode:</b> no database is connected, so anything you add here is lost when the server restarts. To keep your data, open this project in Vercel →
+            <b> Storage</b> → add <b>Turso</b> (one click; it fills in the variables), then redeploy.
+          </div>
+        )}
         <main id="main" className="mx-auto max-w-[1400px] p-4 md:p-6">{children}</main>
       </div>
       <CommandPalette open={open} setOpen={setOpen} />

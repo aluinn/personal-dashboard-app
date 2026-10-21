@@ -127,9 +127,9 @@ export default function GalaxyView({
               <div className="mt-3 flex gap-2">
                 <Link href={`/notes/${sel.id}`} className="btn">Read here</Link>
                 {sel.url ? (
-                  <a href={sel.url} target="_blank" rel="noreferrer" className="btn inline-flex items-center gap-1">Open in Notion <ExternalLink className="h-3 w-3" /></a>
+                  <a href={sel.url} target="_blank" rel="noreferrer" className="btn inline-flex items-center gap-1">Open PDF <ExternalLink className="h-3 w-3" /></a>
                 ) : (
-                  <span className="micro self-center !text-[9px]">No Notion page yet</span>
+                  <span className="micro self-center !text-[9px]">No PDF yet</span>
                 )}
               </div>
             </motion.aside>

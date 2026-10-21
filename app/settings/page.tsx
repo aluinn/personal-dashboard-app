@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import PageHeader from "@/components/ui/PageHeader";
 import Panel from "@/components/ui/Panel";
@@ -11,9 +10,7 @@ import { getEventFeedLines } from "@/lib/events/load";
 import { saveProjectLinks } from "@/app/life-actions";
 import { getProjectLinks } from "@/lib/db/life";
 import { PROJECTS } from "@/lib/life";
-import { saveNotionSettings, saveTermDatesAction } from "@/app/notes/actions";
-import SyncButton from "@/components/notes/SyncButton";
-import { getNotionStatus } from "@/lib/notion/sync";
+import { saveTermDatesAction } from "@/app/notes/actions";
 import { getTermDates } from "@/lib/db/academic";
 import { MODULE_TERMS, TERMS, YEAR_LABEL, CURRENT_YEAR } from "@/lib/academic";
 import HealthImport from "@/components/settings/HealthImport";
@@ -24,7 +21,7 @@ async function Data() {
   const { modules, sessions } = await getTimetableData();
   const weekly = sessions.filter((s) => !s.date);
   const oneOff = sessions.filter((s) => s.date).sort((a, b) => a.date!.localeCompare(b.date!));
-  const [counts, match, src, eventFeeds, projectLinks, notion, termDates] = await Promise.all([
+  const [counts, match, src, eventFeeds, projectLinks, termDates] = await Promise.all([
     q.get<{ nights: number; hr: number; hrv: number; steps: number; workouts: number; first: string | null; last: string | null }>(
       `SELECT (SELECT COUNT(*) FROM sleep_sessions) AS nights, (SELECT COUNT(*) FROM heart_rate_daily) AS hr, (SELECT COUNT(*) FROM hrv_daily) AS hrv,
               (SELECT COUNT(*) FROM steps_daily) AS steps, (SELECT COUNT(*) FROM workouts_imported) AS workouts,
@@ -34,7 +31,6 @@ async function Data() {
     getSourceSettings(),
     getEventFeedLines(),
     getProjectLinks(),
-    getNotionStatus(),
     getTermDates(),
   ]);
   const healthCounts = { nights: Number(counts?.nights ?? 0), hr: Number(counts?.hr ?? 0), hrv: Number(counts?.hrv ?? 0), steps: Number(counts?.steps ?? 0), workouts: Number(counts?.workouts ?? 0), first: counts?.first ?? null, last: counts?.last ?? null };
@@ -50,23 +46,6 @@ async function Data() {
           </p>
         )}
         <HealthImport ingestConfigured={Boolean(process.env.INGEST_SECRET)} counts={healthCounts} />
-      </Panel>
-
-      <Panel label="NOTION // NOTES SYNC" className="xl:col-span-2" accent="violet">
-        <div className="mb-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
-          <span className={notion.tokenSet ? "text-teal" : "text-magenta"}>{notion.tokenSet ? "● NOTION_TOKEN is set" : "● NOTION_TOKEN not set (add it to .env.local, then restart)"}</span>
-          {notion.last && <span className="micro normal-case tracking-wide">Last sync {new Date(notion.last.at).toLocaleString("en-GB", { timeZone: "Europe/London" })}: {notion.last.ok ? `${notion.last.pages} pages` : notion.last.error}</span>}
-        </div>
-        <p className="mb-3 text-xs text-muted">
-          The token is a secret, so it lives in <code>.env.local</code> and never in a form. Everything else is here. Use <b>either</b> a database below
-          <b> or</b> a Notion URL on each module (Modules panel). The setup steps are on the <Link href="/notes" className="text-teal underline decoration-dotted">Notes</Link> page.
-        </p>
-        <form action={saveNotionSettings} className="grid gap-3 md:grid-cols-[2fr_1fr_auto] md:items-end">
-          <label className="space-y-1"><span className="micro">Notes database URL or ID (optional)</span><input name="database" defaultValue={notion.database} placeholder="https://www.notion.so/…" className="field" /></label>
-          <label className="space-y-1"><span className="micro">Auto-sync every (hours, 0 = off)</span><input name="hours" type="number" min={0} max={72} defaultValue={notion.hours} className="field" /></label>
-          <button className="btn">Save</button>
-        </form>
-        <div className="mt-4 border-t border-line pt-3"><SyncButton disabled={!notion.tokenSet} /></div>
       </Panel>
 
       <Panel label={`TERM DATES // YEAR ${CURRENT_YEAR} (${YEAR_LABEL[CURRENT_YEAR]})`} className="xl:col-span-2">
@@ -98,7 +77,7 @@ async function Data() {
                 <input name="name" defaultValue={m.name} className="field" />
               </label>
               <label className="space-y-1">
-                <span className="micro">Notion notes URL</span>
+                <span className="micro">Notion link (opens from the Notes page)</span>
                 <input name="notionUrl" type="url" defaultValue={m.notionUrl} placeholder="https://www.notion.so/…" className="field" />
               </label>
               <label className="space-y-1">

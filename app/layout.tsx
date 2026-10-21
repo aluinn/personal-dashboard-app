@@ -30,7 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${inter.variable} ${jetbrains.variable} h-full antialiased`}
     >
       <body className="min-h-full">
-        <Shell>{children}</Shell>
+        <Shell demo={Boolean(process.env.VERCEL) && !process.env.TURSO_DATABASE_URL}>{children}</Shell>
         <div className="fx-overlay" aria-hidden />
         <RegisterSW />
       </body>

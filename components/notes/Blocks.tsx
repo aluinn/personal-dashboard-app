@@ -1,6 +1,6 @@
-import type { Block, Span } from "@/lib/notion/types";
+import type { Block, Span } from "@/lib/notes-blocks";
 
-// Renders the stored Notion block tree as plain React (server component, no client JS).
+// Renders the stored note block tree as plain React (server component, no client JS).
 const S = ({ spans }: { spans?: Span[] }) => (
   <>
     {(spans ?? []).map((s, i) => {

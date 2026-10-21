@@ -7,14 +7,10 @@ import Panel from "@/components/ui/Panel";
 import GalaxyView from "@/components/galaxy/GalaxyView";
 import { matches } from "@/lib/galaxy";
 import type { ModuleSummary, NoteItem } from "@/lib/notes";
-import type { SyncResult } from "@/lib/notion/sync";
 import { useNow } from "@/lib/useNow";
-import SetupGuide from "./SetupGuide";
-import SyncButton from "./SyncButton";
+import UploadPanel from "./UploadPanel";
 
-type Status = { tokenSet: boolean; database: string; hours: number; last: SyncResult | null };
-
-const PH = <span className="micro rounded-sm border border-line px-1.5 py-0.5 !text-[9px]" title="Sample note, replaced once real pages sync from Notion">placeholder</span>;
+const PH = <span className="micro rounded-sm border border-line px-1.5 py-0.5 !text-[9px]" title="Sample note, replaced once you upload real lectures for this module">placeholder</span>;
 const when = (ms: number | null, now: number) => {
   if (ms === null) return "no edit date";
   const d = Math.floor((now - ms) / 86400000);
@@ -22,15 +18,13 @@ const when = (ms: number | null, now: number) => {
 };
 const daysTo = (date: string, today: string) => Math.round((Date.parse(date) - Date.parse(today)) / 86400000);
 
-export default function NotesView({ modules, notes, status, today }: { modules: ModuleSummary[]; notes: NoteItem[]; status: Status; currentTerm: string; today: string }) {
+export default function NotesView({ modules, notes, today }: { modules: ModuleSummary[]; notes: NoteItem[]; currentTerm: string; today: string }) {
   const now = useNow(60_000);
   const [q, setQ] = useState("");
   const [mod, setMod] = useState<string>("all");
   const [tag, setTag] = useState<string>("all");
   const [term, setTerm] = useState<string>("all");
 
-  const hasSource = Boolean(status.database) || modules.some((m) => m.notionUrl);
-  const connected = status.tokenSet && hasSource;
   const color = new Map(modules.map((m) => [m.code, m.color]));
   const allTags = useMemo(() => {
     const c = new Map<string, number>();
@@ -47,19 +41,7 @@ export default function NotesView({ modules, notes, status, today }: { modules: 
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className={`micro ${connected ? "!text-teal" : "!text-muted"}`}>
-          ● {connected ? "Notion connected" : status.tokenSet ? "Token set, no source yet" : "Notion not connected"}
-        </span>
-        {status.last && (
-          <span className={`micro normal-case tracking-wide ${status.last.ok ? "" : "!text-magenta"}`}>
-            Last sync {when(status.last.at, now)}: {status.last.ok ? `${status.last.pages} pages` : status.last.error}
-          </span>
-        )}
-        <div className="sm:ml-auto"><SyncButton disabled={!connected} /></div>
-      </div>
-
-      {!connected && <SetupGuide tokenSet={status.tokenSet} hasSource={hasSource} />}
+      <UploadPanel modules={modules.map((m) => ({ code: m.code, name: m.name }))} hasReal={notes.some((n) => !n.placeholder)} />
 
       <GalaxyView notes={notes} modules={modules} query={q} onQuery={setQ} />
 

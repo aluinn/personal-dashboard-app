@@ -1,8 +1,8 @@
-import type { Block } from "@/lib/notion/types";
+import type { Block } from "@/lib/notes-blocks";
 
 // Unified note shape shared by the 2D page, the galaxy and the Home widget.
 export type NoteItem = {
-  id: string; // "n-12" (Notion, local row id) or "s-<slug>" (placeholder)
+  id: string; // "n-12" (uploaded PDF, local row id) or "s-<slug>" (placeholder)
   module: string;
   title: string;
   tags: string[];
@@ -13,7 +13,8 @@ export type NoteItem = {
   year: number;
   placeholder: boolean;
   preview: string;
-  url: string; // Notion page URL, "" for placeholders
+  url: string; // link to the original (the uploaded PDF), "" for placeholders
+  hasPdf?: boolean;
   kind?: string;
 };
 

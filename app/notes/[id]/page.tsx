@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { ExternalLink } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Blocks from "@/components/notes/Blocks";
+import NoteAdmin from "@/components/notes/NoteAdmin";
 import { getNotesData, getReadingNote } from "@/lib/db/notes";
 
 async function Reader({ params }: { params: Promise<{ id: string }> }) {
@@ -30,10 +31,11 @@ async function Reader({ params }: { params: Promise<{ id: string }> }) {
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {note.tags.map((t) => <span key={t} className="micro rounded-sm border border-line px-1.5 py-0.5 !text-[9px]">{t}</span>)}
         {note.url && (
-          <a href={note.url} target="_blank" rel="noreferrer" className="btn ml-auto inline-flex items-center gap-1">Open in Notion <ExternalLink className="h-3 w-3" /></a>
+          <a href={note.url} target="_blank" rel="noreferrer" className="btn ml-auto inline-flex items-center gap-1">Open original PDF <ExternalLink className="h-3 w-3" /></a>
         )}
       </div>
       <div className="mt-6 border-t border-line pt-4 text-[15px]"><Blocks blocks={note.blocks} /></div>
+      {note.hasPdf && <NoteAdmin id={note.id} title={note.title} week={note.week} tags={note.tags} />}
     </article>
   );
 }
